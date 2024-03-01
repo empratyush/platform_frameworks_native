@@ -89,9 +89,36 @@ binder_status_t AServiceManager_registerLazyService(AIBinder* binder, const char
 
     return PruneStatusT(status);
 }
+
+bool isDrmService(const std::string instance);
+
+bool isDrmService(const std::string instance) {
+    if (instance.find("android.hardware.drm") == std::string::npos) {
+        return false;
+    }
+
+    std::string widevineService = "android.hardware.drm.IDrmFactory/widevine";
+    std::string defaultService = "android.hardware.drm.IDrmFactory/clearkey";
+    std::string clearkeyService = "android.hardware.drm.IDrmFactory/default";
+    std::string castkey = "android.hardware.drm.IDrmFactory/castkey";
+
+    return instance.compare(widevineService) == 0 ||
+            instance.compare(defaultService) == 0 ||
+            instance.compare(clearkeyService) == 0 ||
+            instance.compare(castkey) == 0;
+}
+
 AIBinder* AServiceManager_waitForService(const char* instance) {
     if (instance == nullptr) {
         return nullptr;
+    }
+
+    if(isDrmService(instance)) {
+        char const * permission = "android.permission.ALLOW_PROTECTED_MEDIA";
+        if (!checkCallingPermission(String16(permission))) {
+            LOG(ERROR) << String16(permission) << " is not granted hiding instance of " << String16(instance);
+            return nullptr;
+        }
     }
 
     sp<IServiceManager> sm = defaultServiceManager();
